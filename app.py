@@ -204,7 +204,7 @@ if category == "Classic Games":
             if mixed_eq:
                 st.info(f"Mixed Strategy: P1=(C:{mixed_eq[0][0]:.2f}, D:{mixed_eq[0][1]:.2f}), P2=(C:{mixed_eq[1][0]:.2f}, D:{mixed_eq[1][1]:.2f})")
         
-        if st.button("🤖 Get AI Analysis"):
+        if st.button("🔮 Get AI Analysis"):
             with st.spinner("Analyzing..."):
                 analysis = get_ai_analysis(
                     f"Prisoner's Dilemma with payoffs: CC={cc}, CD={cd}, DC={dc}, DD={dd}",
@@ -2177,7 +2177,7 @@ elif category == "Stochastic Games":
 
 # ==================== AI ANALYSIS ====================
 elif category == "AI Analysis":
-    st.title("🤖 AI-Powered Game Theory Analysis")
+    st.title("🔮 AI-Powered Game Theory Analysis")
     
     analysis_type = st.sidebar.selectbox(
         "Analysis Type",
@@ -2192,7 +2192,7 @@ elif category == "AI Analysis":
             placeholder="A Battle of the Sexes game where Player 1 prefers Opera and Player 2 prefers Football. Payoffs are (2,1) for Opera, (1,2) for Football, and (0,0) otherwise.",
             height=150
         )
-        if st.button("🤖 Find Equilibria"):
+        if st.button("🔮 Find Equilibria"):
             if game_description:
                 with st.spinner("AI is searching for equilibria..."):
                     prompt = f"""
@@ -2234,7 +2234,7 @@ elif category == "AI Analysis":
                                    ["Find Equilibria", "Optimal Strategy", "Payoff Analysis", 
                                     "Comparative Statics"])
         
-        if st.button("🤖 Analyze with AI"):
+        if st.button("🔮 Analyze with AI"):
             if game_description:
                 with st.spinner("AI is analyzing your game..."):
                     prompt = f"""
