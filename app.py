@@ -12,7 +12,7 @@ import json
 
 # Configure Gemini AI
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-2.0-flash')
 
 # Page config
 st.set_page_config(page_title="Game Theory Simulator", layout="wide", page_icon="🎮")
@@ -44,463 +44,7 @@ def find_nash_equilibrium_pure(payoff_matrix):
             
             # Player 1's incentive to deviate
             for i_prime in range(rows):
-                if delta >= min_delta:
-                    st.success("✅ Cooperation sustainable with Grim Trigger!")
-                else:
-                    st.error("❌ Players too impatient - cooperation not sustainable")
-    
-    elif model == "Grim Trigger vs Tit-for-Tat":
-        st.markdown("""
-        Compare different repeated game strategies:
-        - **Grim Trigger**: Cooperate until opponent defects, then defect forever
-        - **Tit-for-Tat**: Copy opponent's last move
-        - **Always Cooperate**: Always cooperate
-        - **Always Defect**: Always defect
-        """)
-        
-        # Payoff matrix
-        payoff_matrix = np.array([
-            [[3, 3], [0, 5]],
-            [[5, 0], [1, 1]]
-        ])
-        
-        rounds = st.slider("Number of Rounds", 10, 200, 50)
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            strategy1 = st.selectbox("Player 1 Strategy", 
-                                    ["Tit-for-Tat", "Grim Trigger", "Always Cooperate", 
-                                     "Always Defect", "Random"])
-        
-        with col2:
-            strategy2 = st.selectbox("Player 2 Strategy",
-                                    ["Tit-for-Tat", "Grim Trigger", "Always Cooperate",
-                                     "Always Defect", "Random"])
-        
-        if st.button("Simulate Game"):
-            scores, history = simulate_repeated_game(payoff_matrix, strategy1, strategy2, rounds)
-            
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Player 1 Total", scores[0])
-            col2.metric("Player 2 Total", scores[1])
-            col3.metric("Avg Per Round", f"{sum(scores)/(2*rounds):.2f}")
-            
-            # Plot scores over time
-            p1_cumulative = np.cumsum([h[2] for h in history])
-            p2_cumulative = np.cumsum([h[3] for h in history])
-            
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(y=p1_cumulative, name='Player 1', mode='lines'))
-            fig.add_trace(go.Scatter(y=p2_cumulative, name='Player 2', mode='lines'))
-            fig.update_layout(title="Cumulative Scores", xaxis_title="Round", yaxis_title="Score")
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Action history
-            actions_p1 = ['C' if h[0] == 0 else 'D' for h in history[:20]]
-            actions_p2 = ['C' if h[1] == 0 else 'D' for h in history[:20]]
-            
-            st.subheader("Action History (First 20 Rounds)")
-            st.write("P1: " + " ".join(actions_p1))
-            st.write("P2: " + " ".join(actions_p2))
-
-# ==================== STOCHASTIC GAMES ====================
-elif category == "Stochastic Games":
-    st.title("🎲 Stochastic Games")
-    
-    model = st.sidebar.selectbox(
-        "Model",
-        ["Simple Stochastic Game", "Markov Decision Game", "Stopping Games",
-         "Big Match Game", "Resource Management Game"]
-    )
-    
-    if model == "Simple Stochastic Game":
-        st.markdown("""
-        Game with multiple states. Actions determine payoffs and state transitions.
-        Players optimize expected discounted sum of payoffs.
-        """)
-        
-        st.subheader("Two-State Game")
-        
-        delta = st.slider("Discount Factor", 0.0, 0.99, 0.9, 0.01)
-        
-        st.write("**State 1: Cooperation State**")
-        col1, col2 = st.columns(2)
-        with col1:
-            s1_cc_payoff = st.number_input("Both Cooperate Payoff", 0, 10, 5, key="s1cc")
-            s1_cc_prob = st.slider("Stay in State 1 Prob", 0.0, 1.0, 0.9, key="s1cc_p")
-        with col2:
-            s1_cd_payoff = st.number_input("C/D Payoff", -5, 5, 0, key="s1cd")
-            s1_cd_prob = st.slider("Switch to State 2 Prob", 0.0, 1.0, 0.8, key="s1cd_p")
-        
-        st.write("**State 2: Punishment State**")
-        col1, col2 = st.columns(2)
-        with col1:
-            s2_dd_payoff = st.number_input("Both Defect Payoff", -5, 5, 1, key="s2dd")
-            s2_dd_prob = st.slider("Stay in State 2 Prob", 0.0, 1.0, 0.7, key="s2dd_p")
-        with col2:
-            s2_cd_payoff = st.number_input("C/D Payoff (S2)", -5, 5, 0, key="s2cd")
-            s2_return_prob = st.slider("Return to State 1 Prob", 0.0, 1.0, 0.3, key="s2ret")
-        
-        if st.button("Analyze Equilibrium"):
-            st.info("Computing stationary equilibrium strategies...")
-            
-            # Simplified analysis
-            # Value of cooperation in state 1
-            V_coop_s1 = s1_cc_payoff / (1 - delta * s1_cc_prob)
-            V_defect_s1 = s1_cd_payoff + delta * s1_cd_prob * (s2_dd_payoff / (1 - delta * s2_dd_prob))
-            
-            st.subheader("Value Functions")
-            st.write(f"Value of Cooperation (State 1): {V_coop_s1:.2f}")
-            st.write(f"Value of Deviation (State 1): {V_defect_s1:.2f}")
-            
-            if V_coop_s1 >= V_defect_s1:
-                st.success("✅ Cooperation is sustainable!")
-            else:
-                st.error("❌ Cooperation not sustainable with these parameters")
-    
-    elif model == "Resource Management Game":
-        st.markdown("""
-        **Common Pool Resource Game**
-        
-        Players extract from a shared resource. Over-extraction depletes the resource.
-        """)
-        
-        n_players = st.slider("Number of Players", 2, 6, 3)
-        initial_resource = st.slider("Initial Resource Level", 50, 200, 100)
-        regeneration_rate = st.slider("Regeneration Rate", 0.0, 0.5, 0.1, 0.01)
-        rounds = st.slider("Time Periods", 10, 100, 30)
-        
-        if st.button("Simulate Resource Extraction"):
-            resource_history = [initial_resource]
-            extractions_history = []
-            
-            for round in range(rounds):
-                current_resource = resource_history[-1]
-                
-                # Each player extracts based on current level
-                # Greedy strategy: extract 20% of available
-                extractions = [min(current_resource / n_players * 0.3, current_resource / n_players) 
-                              for _ in range(n_players)]
-                total_extraction = sum(extractions)
-                
-                # Update resource
-                new_resource = max(0, current_resource - total_extraction)
-                new_resource = new_resource * (1 + regeneration_rate)
-                
-                resource_history.append(new_resource)
-                extractions_history.append(extractions)
-                
-                if new_resource < 1:
-                    st.warning(f"⚠️ Resource depleted at round {round+1}")
-                    break
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                fig = go.Figure()
-                fig.add_trace(go.Scatter(y=resource_history, name='Resource Level', 
-                                        mode='lines+markers'))
-                fig.update_layout(title="Resource Dynamics", xaxis_title="Round", 
-                                 yaxis_title="Resource Level")
-                st.plotly_chart(fig, use_container_width=True)
-            
-            with col2:
-                total_extracted = sum(sum(e) for e in extractions_history)
-                avg_per_player = total_extracted / n_players
-                
-                st.metric("Final Resource", f"{resource_history[-1]:.2f}")
-                st.metric("Total Extracted", f"{total_extracted:.2f}")
-                st.metric("Avg per Player", f"{avg_per_player:.2f}")
-                
-                if resource_history[-1] > initial_resource * 0.5:
-                    st.success("✅ Sustainable extraction")
-                elif resource_history[-1] > 10:
-                    st.warning("⚠️ Resource stressed")
-                else:
-                    st.error("❌ Resource collapse")
-
-# ==================== AI ANALYSIS ====================
-elif category == "AI Analysis":
-    st.title("🤖 AI-Powered Game Theory Analysis")
-    
-    analysis_type = st.sidebar.selectbox(
-        "Analysis Type",
-        ["Custom Game Analysis", "Strategy Recommendation", "Equilibrium Finder",
-         "Real-World Application", "Learning Assistant"]
-    )
-    
-    if analysis_type == "Custom Game Analysis":
-        st.markdown("Describe any game theory scenario and get AI-powered insights!")
-        
-        game_description = st.text_area(
-            "Describe your game:",
-            placeholder="Example: Two companies deciding whether to enter a new market. Entry costs $1M. If both enter, they split the $3M market. If only one enters, they get the full market...",
-            height=150
-        )
-        
-        st.subheader("Game Parameters (Optional)")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            n_players = st.number_input("Number of Players", 2, 10, 2)
-            game_type = st.selectbox("Game Type", 
-                                    ["Simultaneous", "Sequential", "Repeated", "Stochastic"])
-        
-        with col2:
-            information = st.selectbox("Information", 
-                                      ["Complete", "Incomplete", "Imperfect"])
-            objective = st.selectbox("Analysis Goal",
-                                   ["Find Equilibria", "Optimal Strategy", "Payoff Analysis", 
-                                    "Comparative Statics"])
-        
-        if st.button("🤖 Analyze with AI"):
-            if game_description:
-                with st.spinner("AI is analyzing your game..."):
-                    prompt = f"""
-                    Analyze this game theory scenario:
-                    
-                    {game_description}
-                    
-                    Game parameters:
-                    - Players: {n_players}
-                    - Type: {game_type}
-                    - Information: {information}
-                    - Analysis goal: {objective}
-                    
-                    Provide:
-                    1. Formal game structure
-                    2. Equilibrium analysis
-                    3. Strategic insights
-                    4. Optimal strategies
-                    5. Real-world applications
-                    """
-                    
-                    analysis = get_ai_analysis(game_description, 
-                                              f"Players: {n_players}, Type: {game_type}")
-                    
-                    st.markdown("### 🎯 AI Analysis")
-                    st.markdown(analysis)
-            else:
-                st.warning("Please describe your game scenario")
-    
-    elif analysis_type == "Strategy Recommendation":
-        st.markdown("Get AI recommendations for your specific situation!")
-        
-        situation = st.text_area(
-            "Describe your strategic situation:",
-            placeholder="I'm negotiating a salary. The company made an initial offer of $80k. I want $100k. What strategy should I use?",
-            height=150
-        )
-        
-        constraints = st.text_area(
-            "Any constraints or additional information:",
-            placeholder="I have another offer for $85k. The negotiation is in 2 days.",
-            height=100
-        )
-        
-        if st.button("🎯 Get Strategy Recommendation"):
-            if situation:
-                with st.spinner("Generating recommendations..."):
-                    prompt = f"""
-                    Provide strategic advice for this situation:
-                    
-                    Situation: {situation}
-                    
-                    Constraints: {constraints}
-                    
-                    Analyze using game theory principles and provide:
-                    1. Strategic options
-                    2. Expected outcomes for each option
-                    3. Recommended strategy
-                    4. Potential pitfalls to avoid
-                    5. Key factors to consider
-                    """
-                    
-                    recommendation = get_ai_analysis(situation, constraints)
-                    
-                    st.markdown("### 💡 Strategic Recommendation")
-                    st.markdown(recommendation)
-            else:
-                st.warning("Please describe your situation")
-    
-    elif analysis_type == "Real-World Application":
-        st.markdown("Explore real-world applications of game theory concepts!")
-        
-        domain = st.selectbox(
-            "Select Domain",
-            ["Business & Economics", "Politics & Voting", "Biology & Evolution",
-             "Computer Science", "Social Networks", "Environmental Policy",
-             "Military Strategy", "Sports"]
-        )
-        
-        concept = st.selectbox(
-            "Select Concept",
-            ["Nash Equilibrium", "Prisoner's Dilemma", "Auction Design",
-             "Bargaining", "Mechanism Design", "Evolutionary Stability",
-             "Network Effects", "Signaling Games"]
-        )
-        
-        if st.button("🌍 Explore Applications"):
-            with st.spinner("Finding real-world applications..."):
-                prompt = f"""
-                Explain real-world applications of {concept} in {domain}.
-                
-                Provide:
-                1. 3-5 concrete examples
-                2. How game theory principles apply
-                3. Outcomes and insights
-                4. Lessons learned
-                5. Current relevance
-                
-                Make it practical and actionable.
-                """
-                
-                applications = get_ai_analysis(f"{concept} in {domain}", "real-world examples")
-                
-                st.markdown(f"### 🌍 {concept} in {domain}")
-                st.markdown(applications)
-    
-    elif analysis_type == "Learning Assistant":
-        st.markdown("Learn game theory concepts with AI assistance!")
-        
-        topic = st.selectbox(
-            "What would you like to learn?",
-            ["Nash Equilibrium Basics", "Dominant Strategies", "Mixed Strategies",
-             "Subgame Perfection", "Bayesian Games", "Mechanism Design Basics",
-             "Evolutionary Game Theory", "Auction Theory", "Bargaining Solutions",
-             "Cooperative Games", "Repeated Games", "Stochastic Games"]
-        )
-        
-        level = st.radio("Experience Level", ["Beginner", "Intermediate", "Advanced"])
-        
-        specific_question = st.text_input(
-            "Any specific question? (Optional)",
-            placeholder="What's the difference between Nash and subgame perfect equilibrium?"
-        )
-        
-        if st.button("📚 Learn"):
-            with st.spinner("Preparing lesson..."):
-                prompt = f"""
-                Explain {topic} for a {level} level student.
-                
-                {"Specific question: " + specific_question if specific_question else ""}
-                
-                Provide:
-                1. Clear explanation with intuition
-                2. Simple example
-                3. Key insights
-                4. Common misconceptions
-                5. Practice exercise
-                
-                Make it engaging and easy to understand.
-                """
-                
-                lesson = get_ai_analysis(topic, f"Level: {level}, Question: {specific_question}")
-                
-                st.markdown(f"### 📚 Learning: {topic}")
-                st.markdown(lesson)
-                
-                st.markdown("---")
-                st.markdown("### 💭 Test Your Understanding")
-                
-                user_answer = st.text_area(
-                    "Try the practice exercise or explain the concept in your own words:",
-                    height=100
-                )
-                
-                if st.button("✅ Check Understanding"):
-                    if user_answer:
-                        feedback_prompt = f"""
-                        The student is learning about {topic}.
-                        
-                        Their response: {user_answer}
-                        
-                        Provide constructive feedback:
-                        1. What they got right
-                        2. Any misconceptions
-                        3. Suggestions for improvement
-                        4. Encouragement
-                        """
-                        
-                        feedback = get_ai_analysis(topic, user_answer)
-                        st.markdown("### 📝 Feedback")
-                        st.markdown(feedback)
-
-# Additional Simulations Section
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📊 Quick Simulations")
-
-if st.sidebar.button("🎲 Random Game"):
-    st.title("🎲 Random Game Generator")
-    
-    n = np.random.randint(2, 4)
-    m = np.random.randint(2, 4)
-    
-    payoff_matrix = np.random.randint(-5, 10, (n, m, 2))
-    
-    st.write(f"**Random {n}×{m} Game**")
-    
-    for player in range(2):
-        st.write(f"Player {player+1} Payoffs:")
-        df = pd.DataFrame(payoff_matrix[:,:,player])
-        st.dataframe(df)
-    
-    pure_eq = find_nash_equilibrium_pure(payoff_matrix)
-    
-    if pure_eq:
-        st.success(f"Pure Strategy Equilibria: {pure_eq}")
-    else:
-        st.info("No pure strategy equilibria found")
-
-if st.sidebar.button("🏆 Tournament"):
-    st.title("🏆 Strategy Tournament")
-    st.markdown("Round-robin tournament of repeated game strategies")
-    
-    strategies = ["Tit-for-Tat", "Grim Trigger", "Always Cooperate", 
-                 "Always Defect", "Random"]
-    
-    payoff_matrix = np.array([
-        [[3, 3], [0, 5]],
-        [[5, 0], [1, 1]]
-    ])
-    
-    rounds = 50
-    results = np.zeros((len(strategies), len(strategies)))
-    
-    for i, s1 in enumerate(strategies):
-        for j, s2 in enumerate(strategies):
-            if i <= j:
-                scores, _ = simulate_repeated_game(payoff_matrix, s1, s2, rounds)
-                results[i, j] = scores[0]
-                results[j, i] = scores[1]
-    
-    total_scores = results.sum(axis=1)
-    winner_idx = np.argmax(total_scores)
-    
-    st.success(f"🏆 Tournament Winner: {strategies[winner_idx]}")
-    
-    df = pd.DataFrame(results, columns=strategies, index=strategies)
-    st.dataframe(df.style.highlight_max(axis=1))
-    
-    fig = px.bar(x=strategies, y=total_scores, title="Total Scores")
-    st.plotly_chart(fig, use_container_width=True)
-
-# Footer
-st.sidebar.markdown("---")
-st.sidebar.markdown("""
-### 📖 About
-This simulator covers 100+ game theory concepts:
-- Classic games & equilibria
-- Auctions & mechanism design
-- Evolutionary & network games
-- Cooperative & bargaining games
-- AI-powered analysis
-
-Built with Streamlit & Gemini AI
-""")
-
-st.sidebar.info("💡 Use AI Analysis for deeper insights on any scenario!") payoff_matrix[i_prime, j, 0] > payoff_matrix[i, j, 0]:
+                if payoff_matrix[i_prime, j, 0] > payoff_matrix[i, j, 0]:
                     is_nash = False
                     break
             
@@ -1765,4 +1309,460 @@ elif category == "Repeated Games":
                 
                 st.metric("Min δ for Cooperation", f"{min_delta:.3f}")
                 
-                if
+                if delta >= min_delta:
+                    st.success("✅ Cooperation sustainable with Grim Trigger!")
+                else:
+                    st.error("❌ Players too impatient - cooperation not sustainable")
+    
+    elif model == "Grim Trigger vs Tit-for-Tat":
+        st.markdown("""
+        Compare different repeated game strategies:
+        - **Grim Trigger**: Cooperate until opponent defects, then defect forever
+        - **Tit-for-Tat**: Copy opponent's last move
+        - **Always Cooperate**: Always cooperate
+        - **Always Defect**: Always defect
+        """)
+        
+        # Payoff matrix
+        payoff_matrix = np.array([
+            [[3, 3], [0, 5]],
+            [[5, 0], [1, 1]]
+        ])
+        
+        rounds = st.slider("Number of Rounds", 10, 200, 50)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            strategy1 = st.selectbox("Player 1 Strategy", 
+                                    ["Tit-for-Tat", "Grim Trigger", "Always Cooperate", 
+                                     "Always Defect", "Random"])
+        
+        with col2:
+            strategy2 = st.selectbox("Player 2 Strategy",
+                                    ["Tit-for-Tat", "Grim Trigger", "Always Cooperate",
+                                     "Always Defect", "Random"])
+        
+        if st.button("Simulate Game"):
+            scores, history = simulate_repeated_game(payoff_matrix, strategy1, strategy2, rounds)
+            
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Player 1 Total", scores[0])
+            col2.metric("Player 2 Total", scores[1])
+            col3.metric("Avg Per Round", f"{sum(scores)/(2*rounds):.2f}")
+            
+            # Plot scores over time
+            p1_cumulative = np.cumsum([h[2] for h in history])
+            p2_cumulative = np.cumsum([h[3] for h in history])
+            
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(y=p1_cumulative, name='Player 1', mode='lines'))
+            fig.add_trace(go.Scatter(y=p2_cumulative, name='Player 2', mode='lines'))
+            fig.update_layout(title="Cumulative Scores", xaxis_title="Round", yaxis_title="Score")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Action history
+            actions_p1 = ['C' if h[0] == 0 else 'D' for h in history[:20]]
+            actions_p2 = ['C' if h[1] == 0 else 'D' for h in history[:20]]
+            
+            st.subheader("Action History (First 20 Rounds)")
+            st.write("P1: " + " ".join(actions_p1))
+            st.write("P2: " + " ".join(actions_p2))
+
+# ==================== STOCHASTIC GAMES ====================
+elif category == "Stochastic Games":
+    st.title("🎲 Stochastic Games")
+    
+    model = st.sidebar.selectbox(
+        "Model",
+        ["Simple Stochastic Game", "Markov Decision Game", "Stopping Games",
+         "Big Match Game", "Resource Management Game"]
+    )
+    
+    if model == "Simple Stochastic Game":
+        st.markdown("""
+        Game with multiple states. Actions determine payoffs and state transitions.
+        Players optimize expected discounted sum of payoffs.
+        """)
+        
+        st.subheader("Two-State Game")
+        
+        delta = st.slider("Discount Factor", 0.0, 0.99, 0.9, 0.01)
+        
+        st.write("**State 1: Cooperation State**")
+        col1, col2 = st.columns(2)
+        with col1:
+            s1_cc_payoff = st.number_input("Both Cooperate Payoff", 0, 10, 5, key="s1cc")
+            s1_cc_prob = st.slider("Stay in State 1 Prob", 0.0, 1.0, 0.9, key="s1cc_p")
+        with col2:
+            s1_cd_payoff = st.number_input("C/D Payoff", -5, 5, 0, key="s1cd")
+            s1_cd_prob = st.slider("Switch to State 2 Prob", 0.0, 1.0, 0.8, key="s1cd_p")
+        
+        st.write("**State 2: Punishment State**")
+        col1, col2 = st.columns(2)
+        with col1:
+            s2_dd_payoff = st.number_input("Both Defect Payoff", -5, 5, 1, key="s2dd")
+            s2_dd_prob = st.slider("Stay in State 2 Prob", 0.0, 1.0, 0.7, key="s2dd_p")
+        with col2:
+            s2_cd_payoff = st.number_input("C/D Payoff (S2)", -5, 5, 0, key="s2cd")
+            s2_return_prob = st.slider("Return to State 1 Prob", 0.0, 1.0, 0.3, key="s2ret")
+        
+        if st.button("Analyze Equilibrium"):
+            st.info("Computing stationary equilibrium strategies...")
+            
+            # Simplified analysis
+            # Value of cooperation in state 1
+            V_coop_s1 = s1_cc_payoff / (1 - delta * s1_cc_prob)
+            V_defect_s1 = s1_cd_payoff + delta * s1_cd_prob * (s2_dd_payoff / (1 - delta * s2_dd_prob))
+            
+            st.subheader("Value Functions")
+            st.write(f"Value of Cooperation (State 1): {V_coop_s1:.2f}")
+            st.write(f"Value of Deviation (State 1): {V_defect_s1:.2f}")
+            
+            if V_coop_s1 >= V_defect_s1:
+                st.success("✅ Cooperation is sustainable!")
+            else:
+                st.error("❌ Cooperation not sustainable with these parameters")
+    
+    elif model == "Resource Management Game":
+        st.markdown("""
+        **Common Pool Resource Game**
+        
+        Players extract from a shared resource. Over-extraction depletes the resource.
+        """)
+        
+        n_players = st.slider("Number of Players", 2, 6, 3)
+        initial_resource = st.slider("Initial Resource Level", 50, 200, 100)
+        regeneration_rate = st.slider("Regeneration Rate", 0.0, 0.5, 0.1, 0.01)
+        rounds = st.slider("Time Periods", 10, 100, 30)
+        
+        if st.button("Simulate Resource Extraction"):
+            resource_history = [initial_resource]
+            extractions_history = []
+            
+            for round in range(rounds):
+                current_resource = resource_history[-1]
+                
+                # Each player extracts based on current level
+                # Greedy strategy: extract 20% of available
+                extractions = [min(current_resource / n_players * 0.3, current_resource / n_players) 
+                              for _ in range(n_players)]
+                total_extraction = sum(extractions)
+                
+                # Update resource
+                new_resource = max(0, current_resource - total_extraction)
+                new_resource = new_resource * (1 + regeneration_rate)
+                
+                resource_history.append(new_resource)
+                extractions_history.append(extractions)
+                
+                if new_resource < 1:
+                    st.warning(f"⚠️ Resource depleted at round {round+1}")
+                    break
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(y=resource_history, name='Resource Level', 
+                                        mode='lines+markers'))
+                fig.update_layout(title="Resource Dynamics", xaxis_title="Round", 
+                                 yaxis_title="Resource Level")
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                total_extracted = sum(sum(e) for e in extractions_history)
+                avg_per_player = total_extracted / n_players
+                
+                st.metric("Final Resource", f"{resource_history[-1]:.2f}")
+                st.metric("Total Extracted", f"{total_extracted:.2f}")
+                st.metric("Avg per Player", f"{avg_per_player:.2f}")
+                
+                if resource_history[-1] > initial_resource * 0.5:
+                    st.success("✅ Sustainable extraction")
+                elif resource_history[-1] > 10:
+                    st.warning("⚠️ Resource stressed")
+                else:
+                    st.error("❌ Resource collapse")
+
+# ==================== AI ANALYSIS ====================
+elif category == "AI Analysis":
+    st.title("🤖 AI-Powered Game Theory Analysis")
+    
+    analysis_type = st.sidebar.selectbox(
+        "Analysis Type",
+        ["Custom Game Analysis", "Strategy Recommendation", "Equilibrium Finder",
+         "Real-World Application", "Learning Assistant"]
+    )
+    
+    if analysis_type == "Custom Game Analysis":
+        st.markdown("Describe any game theory scenario and get AI-powered insights!")
+        
+        game_description = st.text_area(
+            "Describe your game:",
+            placeholder="Example: Two companies deciding whether to enter a new market. Entry costs $1M. If both enter, they split the $3M market. If only one enters, they get the full market...",
+            height=150
+        )
+        
+        st.subheader("Game Parameters (Optional)")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            n_players = st.number_input("Number of Players", 2, 10, 2)
+            game_type = st.selectbox("Game Type", 
+                                    ["Simultaneous", "Sequential", "Repeated", "Stochastic"])
+        
+        with col2:
+            information = st.selectbox("Information", 
+                                      ["Complete", "Incomplete", "Imperfect"])
+            objective = st.selectbox("Analysis Goal",
+                                   ["Find Equilibria", "Optimal Strategy", "Payoff Analysis", 
+                                    "Comparative Statics"])
+        
+        if st.button("🤖 Analyze with AI"):
+            if game_description:
+                with st.spinner("AI is analyzing your game..."):
+                    prompt = f"""
+                    Analyze this game theory scenario:
+                    
+                    {game_description}
+                    
+                    Game parameters:
+                    - Players: {n_players}
+                    - Type: {game_type}
+                    - Information: {information}
+                    - Analysis goal: {objective}
+                    
+                    Provide:
+                    1. Formal game structure
+                    2. Equilibrium analysis
+                    3. Strategic insights
+                    4. Optimal strategies
+                    5. Real-world applications
+                    """
+                    
+                    analysis = get_ai_analysis(game_description, 
+                                              f"Players: {n_players}, Type: {game_type}")
+                    
+                    st.markdown("### 🎯 AI Analysis")
+                    st.markdown(analysis)
+            else:
+                st.warning("Please describe your game scenario")
+    
+    elif analysis_type == "Strategy Recommendation":
+        st.markdown("Get AI recommendations for your specific situation!")
+        
+        situation = st.text_area(
+            "Describe your strategic situation:",
+            placeholder="I'm negotiating a salary. The company made an initial offer of $80k. I want $100k. What strategy should I use?",
+            height=150
+        )
+        
+        constraints = st.text_area(
+            "Any constraints or additional information:",
+            placeholder="I have another offer for $85k. The negotiation is in 2 days.",
+            height=100
+        )
+        
+        if st.button("🎯 Get Strategy Recommendation"):
+            if situation:
+                with st.spinner("Generating recommendations..."):
+                    prompt = f"""
+                    Provide strategic advice for this situation:
+                    
+                    Situation: {situation}
+                    
+                    Constraints: {constraints}
+                    
+                    Analyze using game theory principles and provide:
+                    1. Strategic options
+                    2. Expected outcomes for each option
+                    3. Recommended strategy
+                    4. Potential pitfalls to avoid
+                    5. Key factors to consider
+                    """
+                    
+                    recommendation = get_ai_analysis(situation, constraints)
+                    
+                    st.markdown("### 💡 Strategic Recommendation")
+                    st.markdown(recommendation)
+            else:
+                st.warning("Please describe your situation")
+    
+    elif analysis_type == "Real-World Application":
+        st.markdown("Explore real-world applications of game theory concepts!")
+        
+        domain = st.selectbox(
+            "Select Domain",
+            ["Business & Economics", "Politics & Voting", "Biology & Evolution",
+             "Computer Science", "Social Networks", "Environmental Policy",
+             "Military Strategy", "Sports"]
+        )
+        
+        concept = st.selectbox(
+            "Select Concept",
+            ["Nash Equilibrium", "Prisoner's Dilemma", "Auction Design",
+             "Bargaining", "Mechanism Design", "Evolutionary Stability",
+             "Network Effects", "Signaling Games"]
+        )
+        
+        if st.button("🌍 Explore Applications"):
+            with st.spinner("Finding real-world applications..."):
+                prompt = f"""
+                Explain real-world applications of {concept} in {domain}.
+                
+                Provide:
+                1. 3-5 concrete examples
+                2. How game theory principles apply
+                3. Outcomes and insights
+                4. Lessons learned
+                5. Current relevance
+                
+                Make it practical and actionable.
+                """
+                
+                applications = get_ai_analysis(f"{concept} in {domain}", "real-world examples")
+                
+                st.markdown(f"### 🌍 {concept} in {domain}")
+                st.markdown(applications)
+    
+    elif analysis_type == "Learning Assistant":
+        st.markdown("Learn game theory concepts with AI assistance!")
+        
+        topic = st.selectbox(
+            "What would you like to learn?",
+            ["Nash Equilibrium Basics", "Dominant Strategies", "Mixed Strategies",
+             "Subgame Perfection", "Bayesian Games", "Mechanism Design Basics",
+             "Evolutionary Game Theory", "Auction Theory", "Bargaining Solutions",
+             "Cooperative Games", "Repeated Games", "Stochastic Games"]
+        )
+        
+        level = st.radio("Experience Level", ["Beginner", "Intermediate", "Advanced"])
+        
+        specific_question = st.text_input(
+            "Any specific question? (Optional)",
+            placeholder="What's the difference between Nash and subgame perfect equilibrium?"
+        )
+        
+        if st.button("📚 Learn"):
+            with st.spinner("Preparing lesson..."):
+                prompt = f"""
+                Explain {topic} for a {level} level student.
+                
+                {"Specific question: " + specific_question if specific_question else ""}
+                
+                Provide:
+                1. Clear explanation with intuition
+                2. Simple example
+                3. Key insights
+                4. Common misconceptions
+                5. Practice exercise
+                
+                Make it engaging and easy to understand.
+                """
+                
+                lesson = get_ai_analysis(topic, f"Level: {level}, Question: {specific_question}")
+                
+                st.markdown(f"### 📚 Learning: {topic}")
+                st.markdown(lesson)
+                
+                st.markdown("---")
+                st.markdown("### 💭 Test Your Understanding")
+                
+                user_answer = st.text_area(
+                    "Try the practice exercise or explain the concept in your own words:",
+                    height=100
+                )
+                
+                if st.button("✅ Check Understanding"):
+                    if user_answer:
+                        feedback_prompt = f"""
+                        The student is learning about {topic}.
+                        
+                        Their response: {user_answer}
+                        
+                        Provide constructive feedback:
+                        1. What they got right
+                        2. Any misconceptions
+                        3. Suggestions for improvement
+                        4. Encouragement
+                        """
+                        
+                        feedback = get_ai_analysis(topic, user_answer)
+                        st.markdown("### 📝 Feedback")
+                        st.markdown(feedback)
+
+# Additional Simulations Section
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 📊 Quick Simulations")
+
+if st.sidebar.button("🎲 Random Game"):
+    st.title("🎲 Random Game Generator")
+    
+    n = np.random.randint(2, 4)
+    m = np.random.randint(2, 4)
+    
+    payoff_matrix = np.random.randint(-5, 10, (n, m, 2))
+    
+    st.write(f"**Random {n}×{m} Game**")
+    
+    for player in range(2):
+        st.write(f"Player {player+1} Payoffs:")
+        df = pd.DataFrame(payoff_matrix[:,:,player])
+        st.dataframe(df)
+    
+    pure_eq = find_nash_equilibrium_pure(payoff_matrix)
+    
+    if pure_eq:
+        st.success(f"Pure Strategy Equilibria: {pure_eq}")
+    else:
+        st.info("No pure strategy equilibria found")
+
+if st.sidebar.button("🏆 Tournament"):
+    st.title("🏆 Strategy Tournament")
+    st.markdown("Round-robin tournament of repeated game strategies")
+    
+    strategies = ["Tit-for-Tat", "Grim Trigger", "Always Cooperate", 
+                 "Always Defect", "Random"]
+    
+    payoff_matrix = np.array([
+        [[3, 3], [0, 5]],
+        [[5, 0], [1, 1]]
+    ])
+    
+    rounds = 50
+    results = np.zeros((len(strategies), len(strategies)))
+    
+    for i, s1 in enumerate(strategies):
+        for j, s2 in enumerate(strategies):
+            if i <= j:
+                scores, _ = simulate_repeated_game(payoff_matrix, s1, s2, rounds)
+                results[i, j] = scores[0]
+                results[j, i] = scores[1]
+    
+    total_scores = results.sum(axis=1)
+    winner_idx = np.argmax(total_scores)
+    
+    st.success(f"🏆 Tournament Winner: {strategies[winner_idx]}")
+    
+    df = pd.DataFrame(results, columns=strategies, index=strategies)
+    st.dataframe(df.style.highlight_max(axis=1))
+    
+    fig = px.bar(x=strategies, y=total_scores, title="Total Scores")
+    st.plotly_chart(fig, use_container_width=True)
+
+# Footer
+st.sidebar.markdown("---")
+st.sidebar.markdown("""
+### 📖 About
+This simulator covers 100+ game theory concepts:
+- Classic games & equilibria
+- Auctions & mechanism design
+- Evolutionary & network games
+- Cooperative & bargaining games
+- AI-powered analysis
+
+Built with Streamlit & Gemini AI
+""")
+
+st.sidebar.info("💡 Use AI Analysis for deeper insights on any scenario!")
