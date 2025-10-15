@@ -297,6 +297,104 @@ if category == "Classic Games":
             else:
                 st.success("✅ Fair offer - likely acceptance")
 
+    elif game_type == "Dictator Game":
+        st.markdown("""
+        A simplified version of the Ultimatum Game. Player 1 (the Dictator) decides how to split a sum of money. 
+        Player 2 has no choice and must accept the offer.
+        """)
+        
+        total = st.slider("Total Amount", 10, 100, 10)
+        offer = st.slider("Player 1's Allocation to Player 2", 0, total, 1)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.metric("Player 1 (Dictator) Keeps", total - offer)
+            st.metric("Player 2 Receives", offer)
+        
+        with col2:
+            st.subheader("Predictions")
+            st.write("**Game Theory Prediction**: Offer 0. The dictator should keep everything.")
+            st.write("**Behavioral Reality**: Dictators often give a small amount (around 20%), driven by fairness or social norms.")
+            
+            if offer == 0:
+                st.info("Purely rational (but selfish) choice.")
+            elif offer > total * 0.3:
+                st.success("✅ Generous offer, far from the rational prediction.")
+            else:
+                st.warning("A small, but common, altruistic offer.")
+
+    elif game_type == "Matching Pennies":
+        st.markdown("""
+        A zero-sum game. Each player chooses Heads or Tails.
+        - Player 1 wins if they match.
+        - Player 2 wins if they don't match.
+        """)
+        
+        payoff_matrix = np.array([
+            [[1, -1], [-1, 1]],
+            [[-1, 1], [1, -1]]
+        ])
+        
+        df = pd.DataFrame({
+            'Heads': ['(1, -1)', '(-1, 1)'],
+            'Tails': ['(-1, 1)', '(1, -1)']
+        }, index=['Heads', 'Tails'])
+        
+        st.dataframe(df, use_container_width=True)
+        
+        st.subheader("Equilibrium Analysis")
+        st.info("No pure strategy Nash equilibrium.")
+        st.success("Unique Mixed Strategy Equilibrium: Both players play Heads/Tails with 50% probability.")
+
+    elif game_type == "Stag Hunt":
+        st.markdown("""
+        A coordination game. Two hunters can either hunt a stag or a hare.
+        - Hunting a stag requires cooperation and has a high reward.
+        - Hunting a hare can be done alone but has a lower reward.
+        """)
+        
+        payoff_matrix = np.array([
+            [[5, 5], [0, 3]],
+            [[3, 0], [3, 3]]
+        ])
+        
+        df = pd.DataFrame({
+            'Stag': ['(5, 5)', '(3, 0)'],
+            'Hare': ['(0, 3)', '(3, 3)']
+        }, index=['Stag', 'Hare'])
+        
+        st.dataframe(df, use_container_width=True)
+        
+        st.subheader("Equilibria")
+        st.success("Pure Strategy: (Stag, Stag) - Pareto Optimal")
+        st.success("Pure Strategy: (Hare, Hare) - Risk Dominant")
+        st.info("Mixed Strategy also exists.")
+
+    elif game_type == "Public Goods Game":
+        st.markdown("""
+        N players decide how much of their endowment to contribute to a public pot.
+        The pot is multiplied and distributed equally, regardless of contribution.
+        """)
+        
+        n_players = st.slider("Number of Players", 2, 10, 4)
+        endowment = st.slider("Endowment per Player", 10, 100, 20)
+        multiplier = st.slider("Public Pot Multiplier", 1.1, 3.0, 1.6, 0.1)
+        
+        contributions = [st.slider(f"Player {i+1} Contribution", 0, endowment, endowment//2, key=f"pgg_{i}") for i in range(n_players)]
+        
+        total_contribution = sum(contributions)
+        public_return = total_contribution * multiplier / n_players
+        
+        st.subheader("Results")
+        payoffs = [endowment - contributions[i] + public_return for i in range(n_players)]
+        df = pd.DataFrame({'Contribution': contributions, 'Payoff': payoffs}, index=[f"Player {i+1}" for i in range(n_players)])
+        st.dataframe(df)
+        
+        st.metric("Total Pot", f"${total_contribution:.2f}")
+        st.metric("Payoff per Player from Pot", f"${public_return:.2f}")
+        st.warning("The dominant strategy is to contribute 0 (free-ride), but the best social outcome is full contribution.")
+
 # ==================== NASH EQUILIBRIUM ====================
 elif category == "Nash Equilibrium":
     st.title("⚖️ Nash Equilibrium Finder")
@@ -381,6 +479,49 @@ elif category == "Nash Equilibrium":
                 st.success(f"Pure Equilibria: {pure_eq}")
             else:
                 st.info("No pure equilibria - mixed equilibria likely exist")
+    
+    elif method == "Lemke-Howson":
+        st.markdown("""
+        ### Lemke-Howson Algorithm
+        A classic algorithm for finding one Nash Equilibrium in a two-player (bimatrix) game. It works by traversing a path of vertices on a polytope.
+        
+        - **How it works**: It starts at an artificial equilibrium and pivots between vertices representing strategy profiles until it finds a true equilibrium.
+        - **Guarantee**: It is guaranteed to find at least one Nash Equilibrium.
+        - **Complexity**: While effective, its worst-case complexity can be exponential.
+        
+        A full implementation is complex and typically relies on specialized libraries. The most common Python library for this is `nashpy`.
+        """)
+        
+        st.info("""
+        **Using `nashpy` (Example):**
+        ```python
+        import nashpy as nash
+        import numpy as np
+
+        # Create the game
+        A = np.array([[3, 0], [5, 1]]) # Player 1 payoffs
+        B = np.array([[3, 5], [0, 1]]) # Player 2 payoffs
+        game = nash.Game(A, B)
+
+        # Find equilibria with Lemke-Howson
+        equilibria = game.lemke_howson_enumeration()
+        for eq in equilibria:
+            print(eq)
+        ```
+        """)
+
+    elif method == "Replicator Dynamics":
+        st.markdown("""
+        This is a model from evolutionary game theory that can be used to find stable equilibria. 
+        Strategies with above-average payoffs increase in the population over time.
+        
+        Go to **Evolutionary Games → Replicator Dynamics** for an interactive simulation.
+        """)
+        if st.button("Go to Replicator Dynamics"):
+            st.warning("Please select 'Replicator Dynamics' from the 'Evolutionary Games' category in the sidebar.")
+
+
+
 
 # ==================== EVOLUTIONARY GAMES ====================
 elif category == "Evolutionary Games":
@@ -501,6 +642,106 @@ elif category == "Evolutionary Games":
             fig.update_layout(title="Strategy Distribution", barmode='group')
             st.plotly_chart(fig, use_container_width=True)
 
+    elif game == "Replicator Dynamics":
+        st.markdown("""
+        Models how strategy frequencies evolve in a population. Strategies with higher-than-average fitness will grow.
+        """)
+        st.subheader("2-Strategy Game (e.g., Hawk vs Dove)")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            p11 = st.number_input("Payoff(A, A)", value=2.0)
+            p21 = st.number_input("Payoff(B, A)", value=3.0)
+        with col2:
+            p12 = st.number_input("Payoff(A, B)", value=0.0)
+            p22 = st.number_input("Payoff(B, B)", value=1.0)
+            
+        payoff_matrix = np.array([[p11, p12], [p21, p22]])
+        
+        generations = st.slider("Generations", 10, 500, 100, key='rd_gen')
+        initial_A = st.slider("Initial % of Strategy A", 0.0, 100.0, 50.0, key='rd_init') / 100.0
+        
+        if st.button("Run Replicator Dynamics"):
+            population = [initial_A]
+            for _ in range(generations):
+                p = population[-1]
+                fit_A = p * payoff_matrix[0,0] + (1-p) * payoff_matrix[0,1]
+                fit_B = p * payoff_matrix[1,0] + (1-p) * payoff_matrix[1,1]
+                avg_fit = p * fit_A + (1-p) * fit_B
+                
+                if avg_fit > 1e-6:
+                    p_new = p * fit_A / avg_fit
+                else:
+                    p_new = p
+                population.append(max(0, min(1, p_new)))
+            
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(y=population, name='Strategy A', mode='lines'))
+            fig.add_trace(go.Scatter(y=[1-p for p in population], name='Strategy B', mode='lines'))
+            fig.update_layout(title="Population Dynamics", xaxis_title="Generation", yaxis_title="Frequency")
+            st.plotly_chart(fig, use_container_width=True)
+
+    elif game == "ESS Analysis":
+        st.markdown("""
+        An **Evolutionarily Stable Strategy (ESS)** is a strategy that, if adopted by a population, cannot be invaded by any alternative mutant strategy.
+        """)
+        st.subheader("2x2 Game ESS Conditions")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            p11 = st.number_input("Payoff(A, A)", value=-1.0, key='ess_11')
+            p21 = st.number_input("Payoff(B, A)", value=0.0, key='ess_21')
+        with col2:
+            p12 = st.number_input("Payoff(A, B)", value=-3.0, key='ess_12')
+            p22 = st.number_input("Payoff(B, B)", value=-2.0, key='ess_22')
+        
+        st.write("Is Strategy A an ESS? We need:")
+        st.write(f"1. `E(A, A) > E(B, A)`  OR")
+        st.write(f"2. `E(A, A) = E(B, A)` AND `E(A, B) > E(B, B)`")
+
+        if st.button("Analyze ESS"):
+            # Check if A is an ESS
+            is_A_ess = False
+            if p11 > p21:
+                is_A_ess = True
+            elif p11 == p21 and p12 > p22:
+                is_A_ess = True
+            
+            if is_A_ess:
+                st.success("✅ Strategy A is an ESS.")
+            else:
+                st.error("❌ Strategy A is not an ESS.")
+
+    elif game == "Moran Process":
+        st.markdown("""
+        A stochastic model of evolution in a finite population. At each step, one individual is chosen for reproduction and one for death.
+        """)
+        N = st.slider("Population Size (N)", 10, 100, 20)
+        initial_mutants = st.slider("Initial Mutants", 1, N-1, 1)
+        
+        st.info("This model is highly stochastic. Run multiple times to see different outcomes.")
+        if st.button("Run Moran Process"):
+            history = [initial_mutants]
+            i = initial_mutants
+            while 0 < i < N:
+                # Simplified fitness: mutants have fitness r, residents 1
+                r = 1.1 # Mutant fitness advantage
+                prob_mutant_reproduces = (i * r) / (i * r + (N - i) * 1)
+                
+                if np.random.random() < prob_mutant_reproduces:
+                    i += 1 # A resident is replaced by a mutant
+                else:
+                    i -= 1 # A mutant is replaced by a resident
+                history.append(i)
+            
+            fig = go.Figure(data=go.Scatter(y=history, mode='lines'))
+            fig.update_layout(title="Mutant Count Over Time (Moran Process)", xaxis_title="Step", yaxis_title="Number of Mutants")
+            st.plotly_chart(fig, use_container_width=True)
+            if history[-1] == N:
+                st.success("Mutant fixed in the population!")
+            else:
+                st.error("Mutant went extinct.")
+
 # ==================== AUCTION THEORY ====================
 elif category == "Auction Theory":
     st.title("🏷️ Auction Theory")
@@ -598,6 +839,65 @@ elif category == "Auction Theory":
                 })
                 st.dataframe(df)
 
+    elif auction_type == "English Auction":
+        st.markdown("""
+        Open-outcry ascending auction. Price starts low and bidders raise it. Last remaining bidder wins.
+        Optimal strategy: Stay in until the price exceeds your valuation.
+        """)
+        n_bidders = st.slider("Number of Bidders", 2, 10, 4, key='eng_n')
+        valuations = [st.number_input(f"Bidder {i+1} Valuation", 0, 1000, 100*(i+1), key=f"eng_val_{i}") for i in range(n_bidders)]
+        
+        if st.button("Run English Auction"):
+            active_bidders = list(range(n_bidders))
+            price = 0
+            increment = 10
+            history = []
+            
+            while len(active_bidders) > 1:
+                price += increment
+                bidders_to_drop = []
+                for bidder_idx in active_bidders:
+                    if valuations[bidder_idx] < price:
+                        bidders_to_drop.append(bidder_idx)
+                
+                for b in bidders_to_drop:
+                    active_bidders.remove(b)
+                
+                history.append(f"Price: ${price}, Active Bidders: {len(active_bidders)}")
+            
+            st.subheader("Auction Log")
+            st.code("\n".join(history))
+            
+            winner = active_bidders[0]
+            final_price = price - increment # Price at which the second-to-last bidder dropped out
+            st.success(f"Winner: Bidder {winner+1} at price ${final_price}")
+            st.metric("Winner's Surplus", f"${valuations[winner] - final_price}")
+            st.info("Outcome is equivalent to a Second-Price auction.")
+
+    elif auction_type == "Dutch Auction":
+        st.markdown("""
+        Descending price auction. A price clock starts high and drops. The first bidder to stop the clock wins and pays that price.
+        Strategically similar to a First-Price Sealed-Bid auction.
+        """)
+        n_bidders = st.slider("Number of Bidders", 2, 10, 3, key='dutch_n')
+        valuations = [st.number_input(f"Bidder {i+1} Valuation", 0, 1000, 100*(i+1), key=f"dutch_val_{i}") for i in range(n_bidders)]
+        
+        if st.button("Run Dutch Auction"):
+            # Optimal bids are same as first-price: (n-1)/n * v
+            bids = [v * (n_bidders - 1) / n_bidders for v in valuations]
+            
+            # In a Dutch auction, the person willing to bid highest stops the clock first
+            winner = np.argmax(bids)
+            winning_price = bids[winner]
+            
+            st.subheader("Results")
+            st.success(f"Winner: Bidder {winner+1}")
+            st.metric("Winning Price", f"${winning_price:.2f}")
+            st.metric("Winner's Valuation", f"${valuations[winner]:.2f}")
+            st.metric("Winner's Surplus", f"${valuations[winner] - winning_price:.2f}")
+            st.info("The bidder with the highest valuation doesn't always win if they shade their bid too much!")
+
+
     elif auction_type == "All-Pay Auction":
         st.markdown("""
         All bidders pay their bid, but only the highest bidder wins.
@@ -611,6 +911,26 @@ elif category == "Auction Theory":
         st.write(f"Expected bid per player: ${prize_value * (n_bidders-1) / n_bidders:.2f}")
         st.write(f"Total expected expenditure: ${prize_value * (n_bidders-1):.2f}")
         st.write("⚠️ All-pay auctions lead to significant rent dissipation!")
+
+    elif auction_type == "Multi-Unit Auction":
+        st.markdown("""
+        Auctions for multiple identical items.
+        - **Uniform Price**: All winners pay the same price (the highest rejected bid).
+        - **Discriminatory Price**: Winners pay their own bid amount.
+        """)
+        n_items = st.slider("Number of Items", 1, 10, 3)
+        bids = [st.number_input(f"Bidder {i+1} Bid", 0, 100, 100-i*10, key=f"mua_{i}") for i in range(n_items + 2)]
+        
+        sorted_bids = sorted(bids, reverse=True)
+        winners = sorted_bids[:n_items]
+        highest_rejected_bid = sorted_bids[n_items]
+        
+        st.subheader("Uniform Price Auction Results")
+        st.success(f"Winners pay: ${highest_rejected_bid}")
+        st.write(f"Winning bids: {winners}")
+        
+        st.subheader("Discriminatory Price Auction Results")
+        st.info("Winners pay their own bids. This is like a series of first-price auctions.")
 
 # ==================== BARGAINING GAMES ====================
 elif category == "Bargaining Games":
@@ -716,6 +1036,49 @@ elif category == "Bargaining Games":
             df = pd.DataFrame(offers, columns=['Period', 'Proposer', 'P1 Gets', 'P2 Gets'])
             st.dataframe(df)
 
+    elif model == "Kalai-Smorodinsky":
+        st.markdown("""
+        An alternative to the Nash solution. It satisfies monotonicity.
+        The solution is the intersection of the Pareto frontier and the line from the disagreement point to the "utopia point".
+        """)
+        surplus = st.slider("Total Surplus", 10, 100, 100, key='ks_surplus')
+        d1 = st.number_input("P1 Disagreement Payoff", 0, surplus//2, 10, key='ks_d1')
+        d2 = st.number_input("P2 Disagreement Payoff", 0, surplus//2, 20, key='ks_d2')
+        
+        # Utopia point: max each player can get
+        u1_star = surplus - d2
+        u2_star = surplus - d1
+        
+        # Solution is where (x-d1)/(u1*-d1) = (y-d2)/(u2*-d2) and x+y=surplus
+        # (x-d1)/(surplus-d1-d2) = (surplus-x-d2)/(surplus-d1-d2)
+        # x - d1 = surplus - x - d2 => 2x = surplus + d1 - d2
+        p1_share = (surplus + d1 - d2) / 2
+        p2_share = surplus - p1_share
+        
+        st.subheader("Kalai-Smorodinsky Solution")
+        col1, col2 = st.columns(2)
+        col1.metric("Player 1 Share", f"${p1_share:.2f}")
+        col2.metric("Player 2 Share", f"${p2_share:.2f}")
+        
+        st.write(f"Utopia Point: ({u1_star}, {u2_star})")
+
+    elif model == "Egalitarian Solution":
+        st.markdown("""
+        This solution seeks to equalize the gains of the players from the disagreement point.
+        It's the point on the Pareto frontier where `u1 - d1 = u2 - d2`.
+        """)
+        surplus = st.slider("Total Surplus", 10, 100, 100, key='egal_surplus')
+        d1 = st.number_input("P1 Disagreement Payoff", 0, surplus//2, 10, key='egal_d1')
+        d2 = st.number_input("P2 Disagreement Payoff", 0, surplus//2, 20, key='egal_d2')
+        
+        # u1 - d1 = u2 - d2 => u1 - d1 = (surplus - u1) - d2 => 2*u1 = surplus + d1 - d2
+        p1_share = (surplus + d1 - d2) / 2
+        p2_share = surplus - p1_share
+        
+        st.subheader("Egalitarian Solution")
+        st.metric("Player 1 Share", f"${p1_share:.2f}", f"Gain: ${p1_share-d1:.2f}")
+        st.metric("Player 2 Share", f"${p2_share:.2f}", f"Gain: ${p2_share-d2:.2f}")
+
 # ==================== VOTING SYSTEMS ====================
 elif category == "Voting Systems":
     st.title("🗳️ Voting Systems & Social Choice")
@@ -820,6 +1183,86 @@ elif category == "Voting Systems":
             })
             st.dataframe(df)
     
+    elif system == "Condorcet":
+        st.markdown("""
+        A **Condorcet Winner** is a candidate who wins a one-on-one election against every other candidate.
+        A Condorcet method is any method that elects the Condorcet winner if one exists.
+        """)
+        
+        # Example from Arrow's demo
+        st.subheader("Example: 3 Candidates (A, B, C)")
+        st.write("Preferences:")
+        st.code("35%: A > B > C\n33%: B > C > A\n32%: C > A > B")
+        
+        if st.button("Find Condorcet Winner"):
+            st.write("**Pairwise Contests:**")
+            # A vs B: 35+32=67 for A, 33 for B -> A wins
+            st.write("A vs B: A wins (67% to 33%)")
+            # A vs C: 35 for A, 33+32=65 for C -> C wins
+            st.write("A vs C: C wins (65% to 35%)")
+            # B vs C: 35+33=68 for B, 32 for C -> B wins
+            st.write("B vs C: B wins (68% to 32%)")
+            
+            st.error("No Condorcet Winner exists! (A > B > C > A). This is a Condorcet Paradox.")
+
+    elif system == "Ranked Choice (IRV)":
+        st.markdown("""
+        **Instant-Runoff Voting (IRV)**: Voters rank candidates. If no candidate has a majority of first-place votes, the candidate with the fewest is eliminated. Their votes are redistributed to the voters' next choice. This repeats until a candidate has a majority.
+        """)
+        
+        n_candidates = 4
+        n_voters = st.slider("Number of Voters", 10, 200, 101, key='irv_voters')
+        
+        if st.button("Simulate IRV Election"):
+            # Generate random preferences
+            rankings = [np.random.permutation(n_candidates) for _ in range(n_voters)]
+            
+            active_candidates = list(range(n_candidates))
+            round_num = 1
+            
+            while True:
+                st.subheader(f"Round {round_num}")
+                
+                first_choices = [r[0] for r in rankings]
+                vote_counts = {c: first_choices.count(c) for c in active_candidates}
+                
+                st.write(f"Votes: {vote_counts}")
+                
+                # Check for majority winner
+                for cand, votes in vote_counts.items():
+                    if votes > n_voters / 2:
+                        st.success(f"🏆 Winner: Candidate {chr(65 + cand)} with {votes} votes!")
+                        st.balloons()
+                        return
+                
+                # Elimination
+                if not vote_counts:
+                    st.error("Error: No candidates left.")
+                    return
+
+                min_votes = min(vote_counts.values())
+                loser = [c for c, v in vote_counts.items() if v == min_votes][0]
+                st.warning(f"Eliminated: Candidate {chr(65 + loser)}")
+                
+                active_candidates.remove(loser)
+                
+                # Redistribute votes
+                new_rankings = []
+                for r in rankings:
+                    new_r = [c for c in r if c != loser]
+                    new_rankings.append(new_r)
+                rankings = new_rankings
+                round_num += 1
+
+    elif system == "Copeland Method":
+        st.markdown("""
+        Ranks candidates based on the number of pairwise victories, minus the number of pairwise defeats.
+        It's a Condorcet method.
+        """)
+        st.info("This method uses the pairwise contest results from the 'Condorcet' example.")
+        st.write("A vs B: A wins, B loses. B vs C: B wins, C loses. C vs A: C wins, A loses.")
+        st.write("Scores: A (1W, 1L) = 0. B (1W, 1L) = 0. C (1W, 1L) = 0. All are tied.")
+
     elif system == "Arrow's Impossibility Theorem Demo":
         st.markdown("""
         **Arrow's Impossibility Theorem**: No rank-order voting system can satisfy all:
@@ -1004,6 +1447,90 @@ elif category == "Network Games":
                 fig.update_layout(title="Contagion Spread", xaxis_title="Round", yaxis_title="Adopters")
                 st.plotly_chart(fig, use_container_width=True)
 
+    elif game == "Routing Games":
+        st.markdown("""
+        ### Braess's Paradox
+        Illustrates that adding capacity to a network can sometimes paradoxically *increase* overall travel time.
+        """)
+        
+        num_drivers = st.slider("Number of Drivers (in thousands)", 1, 10, 4) * 1000
+        
+        st.subheader("Scenario 1: No Shortcut")
+        st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Braess_paradox_-_no_bridge.svg/300px-Braess_paradox_-_no_bridge.svg.png", width=200)
+        st.write("Two routes: START-A-END and START-B-END.")
+        st.write("- START-A and B-END are fast roads (10 mins).")
+        st.write("- A-END and START-B are slow roads (Time = Drivers/100).")
+        
+        # Equilibrium: drivers split 50/50
+        drivers_per_route = num_drivers / 2
+        time1 = (drivers_per_route / 100) + 10
+        st.metric("Equilibrium Travel Time (No Shortcut)", f"{time1:.1f} minutes")
+        
+        st.subheader("Scenario 2: With Shortcut")
+        st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Braess_paradox_-_with_bridge.svg/300px-Braess_paradox_-_with_bridge.svg.png", width=200)
+        st.write("A zero-cost shortcut A-B is added.")
+        st.write("Dominant Strategy: Everyone takes START-A-B-END.")
+        
+        time2_start_a = num_drivers / 100
+        time2_b_end = num_drivers / 100
+        total_time2 = time2_start_a + 0 + time2_b_end
+        st.metric("Equilibrium Travel Time (With Shortcut)", f"{total_time2:.1f} minutes", delta=f"{total_time2-time1:.1f} min")
+        st.error("Adding a road made everyone's commute worse!")
+
+    elif game == "Matching Markets":
+        st.markdown("""
+        ### Gale-Shapley Algorithm (Stable Marriage Problem)
+        Finds a stable matching between two sets of elements (e.g., men and women, doctors and hospitals).
+        """)
+        n_pairs = st.slider("Number of Pairs", 3, 5, 4, key='gs_n')
+        men = [f'M{i}' for i in range(n_pairs)]
+        women = [f'W{i}' for i in range(n_pairs)]
+        
+        st.subheader("Preference Lists")
+        # Generate random preferences if not in session state
+        if 'men_prefs' not in st.session_state or len(st.session_state.men_prefs) != n_pairs:
+            st.session_state.men_prefs = {m: np.random.permutation(women) for m in men}
+            st.session_state.women_prefs = {w: np.random.permutation(men) for w in women}
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write("**Men's Preferences**")
+            st.json({m: list(p) for m, p in st.session_state.men_prefs.items()})
+        with col2:
+            st.write("**Women's Preferences**")
+            st.json({w: list(p) for w, p in st.session_state.women_prefs.items()})
+        
+        if st.button("Find Stable Matching"):
+            free_men = list(men)
+            engagements = {} # woman -> man
+            
+            while free_men:
+                man = free_men.pop(0)
+                man_prefs = st.session_state.men_prefs[man]
+                
+                for woman in man_prefs:
+                    if woman not in engagements:
+                        engagements[woman] = man
+                        break
+                    else:
+                        current_partner = engagements[woman]
+                        woman_prefs_list = list(st.session_state.women_prefs[woman])
+                        if woman_prefs_list.index(man) < woman_prefs_list.index(current_partner):
+                            engagements[woman] = man
+                            free_men.append(current_partner)
+                            break
+            
+            st.subheader("Stable Matching (Man-Optimal)")
+            st.json({v: k for k, v in engagements.items()})
+
+    elif game == "Coordination on Networks":
+        st.markdown("""
+        Agents on a network play a coordination game with their neighbors. Will they converge to a single strategy?
+        """)
+        st.info("This is similar to the 'Contagion Model'. If the threshold is 0.5, it's a coordination game where you adopt a strategy if half your neighbors do. A lower threshold means it's easier to coordinate.")
+        if st.button("Go to Contagion Model"):
+            st.warning("Please select 'Contagion Models' from the sidebar to simulate.")
+
 # ==================== MECHANISM DESIGN ====================
 elif category == "Mechanism Design":
     st.title("⚙️ Mechanism Design")
@@ -1125,6 +1652,40 @@ elif category == "Mechanism Design":
             st.warning("❌ Not truthful")
             st.write("Optimal bid < true valuation")
             st.write("Shading depends on beliefs about others")
+    
+    elif mechanism == "Groves Mechanism":
+        st.markdown("""
+        A **Groves mechanism** is a general class of truthful mechanisms for problems with quasi-linear utility.
+        
+        The rule is:
+        1. **Allocation**: Choose the allocation `k` that maximizes the sum of all agents' valuations `Σ vᵢ(k)`.
+        2. **Payment**: Agent `i` pays `hᵢ(v₋ᵢ) - Σ_{j≠i} vⱼ(k*)`, where `hᵢ` is an arbitrary function of other agents' valuations and `k*` is the chosen allocation.
+        
+        The **VCG mechanism** is a specific type of Groves mechanism where `hᵢ(v₋ᵢ) = max_k Σ_{j≠i} vⱼ(k)`. This specific choice makes VCG socially efficient and individually rational under certain conditions.
+        """)
+        st.info("Go to the 'VCG Mechanism' section for an interactive example.")
+
+    elif mechanism == "Myerson's Optimal Auction":
+        st.markdown("""
+        Designs an auction to maximize the seller's expected revenue, given the distribution of bidder valuations.
+        
+        For a single item and bidders with i.i.d. valuations from a regular distribution, the optimal auction is a **second-price auction with a reserve price**.
+        """)
+        st.subheader("Example: Valuations from U[0, 100]")
+        
+        # For U[a,b], virtual value is 2v - b. Reserve is where virtual value = 0.
+        # 2v - 100 = 0 => v = 50.
+        st.success("Optimal Reserve Price for U[0, 100] is $50.")
+        st.write("The seller should set a reserve price of $50. If the highest bid is below $50, the item is not sold.")
+
+    elif mechanism == "Budget Balance":
+        st.markdown("""
+        A mechanism is **budget-balanced** if the sum of payments from agents equals the cost of the outcome (no deficit or surplus).
+        - **Weakly budget-balanced**: No deficit.
+        - **Strongly budget-balanced**: No deficit or surplus.
+        
+        The VCG mechanism is generally **not** budget-balanced. It often runs at a deficit, which must be covered by an external party. The 'VCG Mechanism' demo shows this potential deficit.
+        """)
 
 # ==================== COOPERATIVE GAMES ====================
 elif category == "Cooperative Games":
@@ -1263,6 +1824,56 @@ elif category == "Cooperative Games":
             else:
                 st.error("❌ Core is empty!")
                 st.write(f"Condition violated: {v12 + v13 + v23} > 2 × {v123}")
+    
+    elif concept == "Nucleolus":
+        st.markdown("""
+        The **Nucleolus** is a solution concept that selects an allocation from the core that is "most stable".
+        It lexicographically minimizes the sorted vector of "excesses" for all coalitions. The excess of a coalition `S` is `v(S) - x(S)`.
+        
+        It is computationally intensive and requires solving a sequence of linear programs.
+        """)
+        st.info("For a 3-player game, the nucleolus often coincides with the center of the core if the core is a simple polygon.")
+
+    elif concept == "Banzhaf Power Index":
+        st.markdown("""
+        The **Banzhaf Power Index** measures a player's power in a weighted voting game.
+        It is the number of times a player's vote is **critical** to a winning coalition.
+        """)
+        
+        n_players = st.slider("Number of Players", 3, 5, 3, key='banzhaf_n')
+        weights = [st.number_input(f"Player {i+1} Weight", 1, 100, 10+i*5, key=f"bw_{i}") for i in range(n_players)]
+        quota = st.slider("Quota to Win", sum(weights)//2 + 1, sum(weights), sum(weights)//2 + 1)
+        
+        if st.button("Calculate Banzhaf Index"):
+            critical_votes = [0] * n_players
+            total_critical_votes = 0
+            
+            # Iterate through all 2^n coalitions
+            for i in range(1, 2**n_players):
+                coalition_indices = [j for j in range(n_players) if (i >> j) & 1]
+                coalition_weight = sum(weights[j] for j in coalition_indices)
+                
+                if coalition_weight >= quota:
+                    # This is a winning coalition, check for critical players
+                    for player_idx in coalition_indices:
+                        if coalition_weight - weights[player_idx] < quota:
+                            critical_votes[player_idx] += 1
+                            total_critical_votes += 1
+            
+            st.subheader("Banzhaf Power Index")
+            if total_critical_votes > 0:
+                power_indices = [cv / total_critical_votes for cv in critical_votes]
+                df = pd.DataFrame({'Weight': weights, 'Critical Votes': critical_votes, 'Power Index': power_indices})
+                st.dataframe(df)
+            else:
+                st.warning("No winning coalitions or no critical votes found.")
+
+    elif concept == "Transferable Utility":
+        st.markdown("""
+        A **Transferable Utility (TU)** game is one where the payoffs to players in a coalition can be freely redistributed among them. This is a core assumption for concepts like the Shapley Value, the Core, and the Nucleolus.
+        
+        It implies that the value of a coalition can be expressed as a single number, and there's a perfectly divisible "currency" (like money) to make side payments.
+        """)
 
 # ==================== REPEATED GAMES ====================
 elif category == "Repeated Games":
@@ -1271,7 +1882,7 @@ elif category == "Repeated Games":
     model = st.sidebar.selectbox(
         "Model",
         ["Infinitely Repeated PD", "Finitely Repeated", "Folk Theorem",
-         "Trigger Strategies", "Grim Trigger vs Tit-for-Tat"]
+         "Trigger Strategies", "Grim Trigger vs Tit-for-Tat"],
     )
     
     if model == "Infinitely Repeated PD":
@@ -1313,6 +1924,38 @@ elif category == "Repeated Games":
                     st.success("✅ Cooperation sustainable with Grim Trigger!")
                 else:
                     st.error("❌ Players too impatient - cooperation not sustainable")
+
+    elif model == "Finitely Repeated":
+        st.markdown("""
+        In a finitely repeated game with a known end, **backward induction** applies.
+        - In the last round, it's a one-shot game. The only equilibrium is to Defect.
+        - Knowing this, in the second-to-last round, there's no incentive to cooperate, so both players will Defect.
+        - This logic unravels all the way to the first round.
+        """)
+        st.error("The unique subgame perfect equilibrium is to **Defect in every single round**.")
+        st.info("This holds even for a game repeated a million times, as long as the end is known.")
+
+    elif model == "Folk Theorem":
+        st.markdown("""
+        The **Folk Theorem** is a class of theorems stating that in an infinitely repeated game, almost any reasonable outcome can be a Nash equilibrium if players are sufficiently patient (δ is high).
+        
+        - **Feasible Payoffs**: Any payoff profile that is a convex combination of the one-shot game's outcomes.
+        - **Individually Rational Payoffs**: Payoffs that are at least as good as the player's minmax payoff (what they can guarantee themselves).
+        
+        The theorem states that any feasible payoff profile that is also individually rational can be sustained as an equilibrium.
+        """)
+        st.success("This means a huge number of outcomes (including full cooperation) are possible, not just the one-shot Nash Equilibrium.")
+
+    elif model == "Trigger Strategies":
+        st.markdown("""
+        Trigger strategies are used to sustain cooperation in repeated games. A player cooperates until a "trigger" event occurs, after which they switch to a punishment phase.
+        
+        - **Grim Trigger**: Cooperate until the opponent defects once, then defect forever. (Harshest punishment)
+        - **Tit-for-Tat**: Cooperate on the first round, then copy the opponent's previous move. (Forgiving)
+        - **Tit-for-Two-Tats**: Cooperate until the opponent defects twice in a row, then defect once. (More forgiving)
+        - **Limited Punishment**: Defect for a fixed number of rounds (e.g., 3) after an opponent's defection, then return to cooperation.
+        """)
+        st.info("The 'Grim Trigger vs Tit-for-Tat' simulation lets you compare some of these.")
     
     elif model == "Grim Trigger vs Tit-for-Tat":
         st.markdown("""
@@ -1423,6 +2066,52 @@ elif category == "Stochastic Games":
                 st.success("✅ Cooperation is sustainable!")
             else:
                 st.error("❌ Cooperation not sustainable with these parameters")
+
+    elif model == "Markov Decision Game":
+        st.markdown("""
+        A **Markov Decision Game** is another name for a Stochastic Game. It involves multiple states, actions, probabilistic transitions, and payoffs. The goal is to find an optimal policy (strategy) for each state.
+        
+        The "Simple Stochastic Game" is an interactive example of this concept.
+        """)
+        if st.button("Go to Simple Stochastic Game"):
+            st.warning("Please select 'Simple Stochastic Game' from the sidebar.")
+
+    elif model == "Stopping Games":
+        st.markdown("""
+        ### The Secretary Problem (Optimal Stopping)
+        You need to hire one secretary from a pool of `N` applicants, interviewed one by one. You must decide to hire or reject immediately. What is the optimal strategy to maximize the chance of hiring the best applicant?
+        """)
+        
+        n_applicants = st.slider("Number of Applicants (N)", 10, 100, 50)
+        
+        st.subheader("Optimal Strategy")
+        # Optimal rule: reject the first N/e applicants, then hire the first one better than all previous ones.
+        k = int(n_applicants / np.e)
+        prob_success = (k/n_applicants) * sum(1/(i-1) for i in range(k+1, n_applicants+1)) if k > 0 else 1/n_applicants
+        
+        st.write(f"1. **Look Phase**: Automatically reject the first **{k}** applicants.")
+        st.write(f"2. **Leap Phase**: Hire the next applicant who is better than all {k} you've seen before.")
+        st.metric("Probability of Hiring the Best", f"{prob_success:.2%}")
+        st.info("This probability converges to 1/e ≈ 37% for large N.")
+
+    elif model == "Big Match Game":
+        st.markdown("""
+        A two-player, zero-sum stochastic game with a special structure.
+        - **State 1 (Normal Play)**: A standard matrix game is played. With some probability, the game stays in State 1.
+        - **State 2 (Absorbing End State)**: With some probability, the game transitions to State 2, where Player 1 receives a large payoff `K` and the game ends.
+        
+        The key is that Player 2 wants to avoid State 2 at all costs, which influences their strategy in State 1.
+        """)
+        
+        K = st.number_input("Big Payoff K for Player 1", 10, 1000, 100)
+        p = st.slider("Probability of moving to State 2 if P1 plays 'Up'", 0.0, 1.0, 0.1)
+        
+        st.write("In State 1, if P1 plays 'Up', the game ends with probability `p` and P1 gets `K`.")
+        st.write("If P1 plays 'Down', a simple matrix game is played and the game continues.")
+        
+        st.subheader("Insight")
+        st.info("Even if 'Up' is a bad move in the one-shot game, the *threat* of playing it and potentially ending the game with a big payoff gives Player 1 leverage. Player 2 might be forced to make concessions in the 'Down' subgame to entice Player 1 not to play 'Up'.")
+
     
     elif model == "Resource Management Game":
         st.markdown("""
@@ -1495,6 +2184,31 @@ elif category == "AI Analysis":
          "Real-World Application", "Learning Assistant"]
     )
     
+    if analysis_type == "Equilibrium Finder":
+        st.markdown("Describe a game and let the AI find the equilibria.")
+        game_description = st.text_area(
+            "Describe your game (players, actions, payoffs):",
+            placeholder="A Battle of the Sexes game where Player 1 prefers Opera and Player 2 prefers Football. Payoffs are (2,1) for Opera, (1,2) for Football, and (0,0) otherwise.",
+            height=150
+        )
+        if st.button("🤖 Find Equilibria"):
+            if game_description:
+                with st.spinner("AI is searching for equilibria..."):
+                    prompt = f"""
+                    Analyze the following game and find all its Nash Equilibria (pure and mixed).
+                    
+                    Game: {game_description}
+                    
+                    Provide:
+                    1. A list of all Pure Strategy Nash Equilibria.
+                    2. The calculation and result for any Mixed Strategy Nash Equilibria.
+                    3. A brief explanation of the equilibria.
+                    """
+                    analysis = get_ai_analysis(game_description, "Find all Nash Equilibria")
+                    st.markdown(analysis)
+            else:
+                st.warning("Please describe the game.")
+
     if analysis_type == "Custom Game Analysis":
         st.markdown("Describe any game theory scenario and get AI-powered insights!")
         
