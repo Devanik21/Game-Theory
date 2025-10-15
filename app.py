@@ -1239,7 +1239,7 @@ elif category == "Voting Systems":
                 # Elimination
                 if not vote_counts:
                     st.error("Error: No candidates left.")
-                    return
+                    #return
 
                 min_votes = min(vote_counts.values())
                 loser = [c for c, v in vote_counts.items() if v == min_votes][0]
