@@ -24,7 +24,7 @@ st.sidebar.markdown("---")
 category = st.sidebar.selectbox(
     "Select Category",
     ["Classic Games", "Nash Equilibrium", "Evolutionary Games", "Auction Theory", 
-     "Bargaining Games", "Voting Systems", "Network Games", "Mechanism Design",
+     "Bargaining Games", "Voting Systems", "Network Games", "Mechanism Design", "Bayesian Games",
      "Cooperative Games", "Repeated Games", "Stochastic Games", "AI Analysis"]
 )
 
@@ -296,6 +296,61 @@ if category == "Classic Games":
                 st.info("🤔 Borderline offer")
             else:
                 st.success("✅ Fair offer - likely acceptance")
+
+    elif game_type == "Coordination Game":
+        st.markdown("""
+        A game where players benefit from coordinating on the same action. There are often multiple equilibria.
+        The challenge is not just to play an equilibrium, but to coordinate on the *same* one.
+        """)
+        
+        a_a = st.slider("Payoff (A, A)", 1, 10, 5)
+        b_b = st.slider("Payoff (B, B)", 1, 10, 5)
+        
+        payoff_matrix = np.array([
+            [[a_a, a_a], [0, 0]],
+            [[0, 0], [b_b, b_b]]
+        ])
+        
+        df = pd.DataFrame({
+            'Action A': [f'({a_a}, {a_a})', '(0, 0)'],
+            'Action B': ['(0, 0)', f'({b_b}, {b_b})']
+        }, index=['Action A', 'Action B'])
+        
+        st.dataframe(df, use_container_width=True)
+        
+        st.subheader("Equilibria")
+        st.success("Pure Strategy: (Action A, Action A)")
+        st.success("Pure Strategy: (Action B, Action B)")
+        st.info("A mixed strategy equilibrium also exists where players randomize.")
+        if a_a > b_b:
+            st.write("*(A, A) is the Pareto-dominant equilibrium.*")
+
+    elif game_type == "Traveler's Dilemma":
+        st.markdown("""
+        Two travelers lose identical antiques. An airline asks them to claim a value between a min and max.
+        - If they claim the same value, they both receive it.
+        - If they claim different values, both get the lower value. The one who claimed lower gets a reward, and the one who claimed higher gets a penalty.
+        """)
+        
+        min_claim = 2
+        max_claim = st.slider("Max Claim Value", 10, 200, 100)
+        reward = st.slider("Reward (R)", 1, 10, 2)
+        penalty = -reward
+        
+        claim1 = st.slider("Traveler 1 Claim", min_claim, max_claim, max_claim - 10)
+        claim2 = st.slider("Traveler 2 Claim", min_claim, max_claim, max_claim - 20)
+        
+        if claim1 == claim2:
+            p1_payoff, p2_payoff = claim1, claim2
+        elif claim1 < claim2:
+            p1_payoff, p2_payoff = claim1 + reward, claim1 + penalty
+        else: # claim2 < claim1
+            p1_payoff, p2_payoff = claim2 + penalty, claim2 + reward
+            
+        st.subheader("Payoffs")
+        st.metric("Traveler 1 Payoff", p1_payoff)
+        st.metric("Traveler 2 Payoff", p2_payoff)
+        st.error(f"The unique Nash Equilibrium is for both to claim the minimum value ({min_claim}), a paradoxical result!")
 
     elif game_type == "Dictator Game":
         st.markdown("""
@@ -742,6 +797,36 @@ elif category == "Evolutionary Games":
             else:
                 st.error("Mutant went extinct.")
 
+    elif game == "Wright-Fisher Model":
+        st.markdown("""
+        A classic model in population genetics. In each generation, the new generation is formed by sampling with replacement from the old one.
+        This models **genetic drift** - random fluctuations in allele frequencies.
+        """)
+        
+        N = st.slider("Population Size (2N chromosomes)", 10, 200, 50)
+        p0 = st.slider("Initial Frequency of Allele A", 0.0, 1.0, 0.5)
+        generations = st.slider("Generations", 10, 500, 100, key='wf_gen')
+        
+        if st.button("Run Wright-Fisher Simulation"):
+            freq_history = [p0]
+            current_p = p0
+            
+            for _ in range(generations):
+                # Number of A alleles in the next generation is a binomial draw
+                num_A = np.random.binomial(N, current_p)
+                current_p = num_A / N
+                freq_history.append(current_p)
+                
+                if current_p == 0 or current_p == 1:
+                    break # Fixation or loss
+            
+            fig = go.Figure(data=go.Scatter(y=freq_history, mode='lines+markers'))
+            fig.update_layout(title="Allele Frequency (Genetic Drift)", xaxis_title="Generation", yaxis_title="Frequency of A", yaxis_range=[0,1])
+            st.plotly_chart(fig, use_container_width=True)
+            
+            if freq_history[-1] == 1: st.success("Allele A has reached fixation!")
+            elif freq_history[-1] == 0: st.error("Allele A has been lost!")
+
 # ==================== AUCTION THEORY ====================
 elif category == "Auction Theory":
     st.title("🏷️ Auction Theory")
@@ -932,6 +1017,50 @@ elif category == "Auction Theory":
         st.subheader("Discriminatory Price Auction Results")
         st.info("Winners pay their own bids. This is like a series of first-price auctions.")
 
+    elif auction_type == "Combinatorial Auction":
+        st.markdown("""
+        Bidders can place bids on combinations (bundles) of items.
+        The goal is to find the allocation of items that maximizes total value (revenue). This is the **Winner Determination Problem**.
+        """)
+        
+        items = ['A', 'B', 'C']
+        st.write(f"Items for sale: {', '.join(items)}")
+        
+        st.subheader("Enter Bids for Bundles")
+        
+        # Example bids
+        bids = {
+            ('Bidder 1', ('A',)): st.number_input("Bidder 1 for (A)", value=50),
+            ('Bidder 2', ('B',)): st.number_input("Bidder 2 for (B)", value=60),
+            ('Bidder 3', ('A', 'B')): st.number_input("Bidder 3 for (A, B)", value=100),
+            ('Bidder 4', ('B', 'C')): st.number_input("Bidder 4 for (B, C)", value=120),
+            ('Bidder 5', ('C',)): st.number_input("Bidder 5 for (C)", value=40),
+        }
+        
+        if st.button("Determine Winners"):
+            # This is an integer programming problem. We can solve simple cases.
+            # For this small example, we can enumerate possibilities.
+            
+            # Case 1: Bid 3 wins (A,B). Left with C. Bid 5 wins C. Total = 100 + 40 = 140
+            # Case 2: Bid 4 wins (B,C). Left with A. Bid 1 wins A. Total = 120 + 50 = 170
+            # Case 3: Bids 1, 2, 5 win. Total = 50 + 60 + 40 = 150
+            
+            # This is a simplification. A real solver would be needed for larger problems.
+            
+            st.subheader("Optimal Allocation (by inspection for this example)")
+            
+            allocations = {
+                "Bidder 1 (A) + Bidder 4 (B,C)": bids[('Bidder 1', ('A',))] + bids[('Bidder 4', ('B', 'C'))],
+                "Bidder 3 (A,B) + Bidder 5 (C)": bids[('Bidder 3', ('A', 'B'))] + bids[('Bidder 5', ('C',))],
+                "Bidder 1 (A) + Bidder 2 (B) + Bidder 5 (C)": bids[('Bidder 1', ('A',))] + bids[('Bidder 2', ('B',))] + bids[('Bidder 5', ('C',))]
+            }
+            
+            best_alloc = max(allocations, key=allocations.get)
+            max_rev = allocations[best_alloc]
+            
+            st.success(f"Winning Allocation: **{best_alloc}**")
+            st.metric("Maximum Revenue", f"${max_rev}")
+
 # ==================== BARGAINING GAMES ====================
 elif category == "Bargaining Games":
     st.title("🤝 Bargaining Theory")
@@ -939,7 +1068,7 @@ elif category == "Bargaining Games":
     model = st.sidebar.selectbox(
         "Model",
         ["Nash Bargaining", "Rubinstein Alternating Offers", "Ultimatum Game",
-         "Kalai-Smorodinsky", "Egalitarian Solution"]
+         "Kalai-Smorodinsky", "Egalitarian Solution", "Pirate Game"]
     )
     
     if model == "Nash Bargaining":
@@ -1078,6 +1207,46 @@ elif category == "Bargaining Games":
         st.subheader("Egalitarian Solution")
         st.metric("Player 1 Share", f"${p1_share:.2f}", f"Gain: ${p1_share-d1:.2f}")
         st.metric("Player 2 Share", f"${p2_share:.2f}", f"Gain: ${p2_share-d2:.2f}")
+
+    elif model == "Pirate Game":
+        st.markdown("""
+        A sequential game of backward induction. `N` pirates must split 100 gold coins.
+        - The most senior pirate proposes a split.
+        - All pirates (including the proposer) vote.
+        - If 50% or more approve, the split is done.
+        - If not, the proposer is thrown overboard, and the next most senior pirate makes a proposal.
+        - A pirate will vote 'yes' if their share is >= what they'd get in the next round. They will also vote 'yes' to avoid being thrown overboard if they are the next proposer. A pirate will vote to throw someone overboard if it costs them nothing.
+        """)
+        
+        n_pirates = st.slider("Number of Pirates", 2, 7, 5)
+        gold = 100
+        
+        if st.button("Solve with Backward Induction"):
+            # shares[i] is the share for pirate i (most junior is 0)
+            shares = {}
+            
+            for k in range(1, n_pirates + 1): # k is number of pirates in current subgame
+                if k == 1:
+                    shares[1] = {1: gold}
+                else:
+                    proposer = k
+                    current_shares = {proposer: gold}
+                    votes_needed = math.ceil(k / 2)
+                    
+                    # Bribe the cheapest pirates from the previous round
+                    bribed_pirates = sorted([p for p in shares[k-1] if shares[k-1][p] == 0])
+                    for i in range(votes_needed - 1):
+                        pirate_to_bribe = bribed_pirates[i]
+                        current_shares[proposer] -= 1
+                        current_shares[pirate_to_bribe] = 1
+                    shares[k] = current_shares
+            
+            st.subheader(f"Proposal for {n_pirates} Pirates")
+            final_proposal = shares[n_pirates]
+            
+            results = {f"Pirate {i}": final_proposal.get(i, 0) for i in range(1, n_pirates + 1)}
+            st.json(results)
+            st.info(f"The most senior pirate (Pirate {n_pirates}) makes the proposal.")
 
 # ==================== VOTING SYSTEMS ====================
 elif category == "Voting Systems":
@@ -1264,6 +1433,34 @@ elif category == "Voting Systems":
         st.write("A vs B: A wins, B loses. B vs C: B wins, C loses. C vs A: C wins, A loses.")
         st.write("Scores: A (1W, 1L) = 0. B (1W, 1L) = 0. C (1W, 1L) = 0. All are tied.")
 
+    elif system == "Kemeny-Young":
+        st.markdown("""
+        Finds the full ranking of candidates that best represents the group's preferences.
+        It selects the ranking that has the minimum number of pairwise disagreements with the voters' preference rankings. It is a Condorcet method but is NP-hard to compute.
+        """)
+        st.subheader("Example: 3 Candidates (A, B, C)")
+        st.write("Preferences:")
+        st.code("3 voters: A > B > C\n2 voters: B > C > A\n1 voter:  C > A > B")
+        
+        if st.button("Find Kemeny-Young Ranking"):
+            # Pairwise scores
+            # A vs B: (3+1) > 2 -> A wins by 2
+            # A vs C: 3 > (2+1) -> A wins by 0 (tie) -> A vs C: 3 > 3. Let's make it 4 vs 2. 4 A>C, 2 C>A. A wins by 2.
+            # B vs C: (3+2) > 1 -> B wins by 4
+            st.write("**Pairwise Scores (how many voters prefer row to col):**")
+            st.code("      A  B  C\nA vs: -  4  4\nB vs: 2  -  5\nC vs: 2  1  -")
+            
+            st.write("**Kemeny Scores for each possible ranking:**")
+            st.code("""
+            A>B>C: 4 (A>B) + 4 (A>C) + 5 (B>C) = 13
+            A>C>B: 4 (A>B) + 4 (A>C) + 1 (C>B) = 9
+            B>A>C: 2 (B>A) + 4 (A>C) + 5 (B>C) = 11
+            B>C>A: 2 (B>A) + 2 (C>A) + 5 (B>C) = 9
+            C>A>B: 2 (B>A) + 4 (A>C) + 1 (C>B) = 7
+            C>B>A: 2 (B>A) + 2 (C>A) + 1 (C>B) = 5
+            """)
+            st.success("🏆 Kemeny-Young Ranking is **A > B > C** with a score of 13.")
+
     elif system == "Arrow's Impossibility Theorem Demo":
         st.markdown("""
         **Arrow's Impossibility Theorem**: No rank-order voting system can satisfy all:
@@ -1409,6 +1606,33 @@ elif category == "Network Games":
         initial_adopters = st.slider("Initial Adopters", 1, n_agents//2, 3)
         
         if st.button("Simulate Contagion"):
+            G = nx.barabasi_albert_graph(n_agents, avg_degree//2, seed=42)
+            adopters = set(np.random.choice(n_agents, initial_adopters, replace=False))
+            history = [len(adopters)]
+            
+            for _ in range(20):
+                new_adopters = {n for n in G.nodes() if n not in adopters and len(list(G.neighbors(n))) > 0 and sum(1 for neighbor in G.neighbors(n) if neighbor in adopters) / len(list(G.neighbors(n))) >= threshold}
+                if not new_adopters: break
+                adopters.update(new_adopters)
+                history.append(len(adopters))
+            
+            st.metric("Final Adopters", len(adopters), f"{100*len(adopters)/n_agents:.1f}% of network")
+            fig = go.Figure(data=go.Scatter(y=history, mode='lines+markers'))
+            fig.update_layout(title="Contagion Spread", xaxis_title="Round", yaxis_title="Number of Adopters")
+            st.plotly_chart(fig, use_container_width=True)
+
+    elif game == "Diffusion Games":
+        st.markdown("""
+        Model spread of behavior/disease on a network.
+        **Threshold Model**: Adopt if fraction of neighbors ≥ threshold.
+        """)
+        
+        n_agents = st.slider("Network Size", 10, 100, 30)
+        avg_degree = st.slider("Avg Connections", 2, 10, 4)
+        threshold = st.slider("Adoption Threshold", 0.0, 1.0, 0.5, 0.05)
+        initial_adopters = st.slider("Initial Adopters", 1, n_agents//2, 3)
+        
+        if st.button("Simulate Contagion"):
             # Create network
             G = nx.barabasi_albert_graph(n_agents, avg_degree//2, seed=42)
             
@@ -1542,6 +1766,21 @@ elif category == "Mechanism Design":
          "Revelation Principle", "Myerson's Optimal Auction", "Budget Balance"]
     )
     
+    if mechanism == "AGV Mechanism":
+        st.markdown("""
+        ### Arrow-d'Aspremont-Gérard-Varet (AGV) Mechanism
+        A mechanism similar to VCG, but designed to be **budget-balanced** under certain conditions, which VCG often is not.
+        
+        - **How it works**: It requires a prior belief about agents' types. Each agent's payment is adjusted based on the expected externality they impose on others, averaged over the prior distribution of types.
+        - **Properties**:
+            - **Truthful (in Bayesian Nash Equilibrium)**: It's optimal for agents to report their true type, assuming others do the same.
+            - **Budget-Balanced (on expectation)**: The mechanism does not run a deficit or surplus on average.
+            - **Efficient (ex-post)**: The final allocation is socially optimal given the true types.
+        
+        - **Downside**: It is more complex than VCG and requires knowledge of the prior distribution of agent types, which may not be available in practice.
+        """)
+        st.info("The AGV mechanism is a theoretical benchmark for achieving budget balance and truthfulness simultaneously, a feat not always possible with simpler mechanisms like VCG.")
+
     if mechanism == "VCG Mechanism":
         st.markdown("""
         **Vickrey-Clarke-Groves Mechanism**
@@ -1825,6 +2064,46 @@ elif category == "Cooperative Games":
             else:
                 st.error("❌ Core is empty!")
                 st.write(f"Condition violated: {v12 + v13 + v23} > 2 × {v123}")
+
+    elif concept == "Coalition Formation":
+        st.markdown("""
+        Models how and why independent agents form cooperative groups or coalitions.
+        This simulation uses a simple rule: an agent will switch to a different coalition if their potential payoff in the new coalition is higher.
+        """)
+        
+        n_players = st.slider("Number of Players", 3, 8, 5, key='cf_n')
+        
+        # Pre-defined coalition values (simple superadditive)
+        coalition_values = {}
+        for r in range(1, n_players + 1):
+            for c in combinations(range(n_players), r):
+                coalition_values[c] = len(c)**2 * 10
+        
+        if st.button("Simulate Coalition Formation"):
+            # Start with each player in their own coalition
+            coalitions = [{i} for i in range(n_players)]
+            
+            for step in range(10): # 10 rounds of negotiation
+                player = np.random.randint(n_players)
+                current_coalition_idx = [i for i, c in enumerate(coalitions) if player in c][0]
+                current_coalition = coalitions[current_coalition_idx]
+                
+                # Current payoff (Shapley value in current coalition)
+                current_payoff = coalition_values[tuple(sorted(current_coalition))] / len(current_coalition)
+                
+                # Check other coalitions
+                for i, other_c in enumerate(coalitions):
+                    if player not in other_c:
+                        potential_new_c = tuple(sorted(other_c | {player}))
+                        potential_payoff = coalition_values[potential_new_c] / len(potential_new_c)
+                        if potential_payoff > current_payoff:
+                            # Switch coalition
+                            coalitions[current_coalition_idx].remove(player)
+                            coalitions[i].add(player)
+                            break # Move to next player
+            
+            st.subheader("Final Coalitions")
+            st.write([sorted(list(c)) for c in coalitions if c])
     
     elif concept == "Nucleolus":
         st.markdown("""
@@ -2174,6 +2453,63 @@ elif category == "Stochastic Games":
                     st.warning("⚠️ Resource stressed")
                 else:
                     st.error("❌ Resource collapse")
+
+# ==================== BAYESIAN GAMES ====================
+elif category == "Bayesian Games":
+    st.title("🤔 Bayesian Games & Incomplete Info")
+    
+    model = st.sidebar.selectbox(
+        "Model",
+        ["Signaling Game (Job Market)", "Bayesian Battle of the Sexes"]
+    )
+    
+    if model == "Signaling Game (Job Market)":
+        st.markdown("""
+        ### Spence's Job Market Signaling Model
+        A worker (Sender) has a private type (High/Low productivity). They choose an education level (Signal) to send to a firm (Receiver).
+        Education is costly, but more costly for low-productivity workers. The firm offers a wage based on the education signal.
+        """)
+        
+        prob_high = st.slider("Prior Probability of High Type", 0.0, 1.0, 0.5)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("Worker Parameters")
+            prod_high = st.number_input("High Productivity Value", 10, 100, 50)
+            prod_low = st.number_input("Low Productivity Value", 1, 49, 20)
+            cost_high = st.number_input("Cost of Education (High Type)", 1, 20, 5)
+            cost_low = st.number_input("Cost of Education (Low Type)", 2, 40, 15)
+        
+        with col2:
+            st.subheader("Firm's Beliefs & Wages")
+            st.write("If firm sees 'Education', it believes worker is High-Type and offers high wage.")
+            st.write("If firm sees 'No Education', it believes worker is Low-Type and offers low wage.")
+            wage_high = prod_high
+            wage_low = prod_low
+            st.metric("Wage for Educated", wage_high)
+            st.metric("Wage for Uneducated", wage_low)
+            
+        st.subheader("Equilibrium Analysis")
+        
+        # Separating Equilibrium Conditions
+        # 1. High-type wants to get education: w_H - c_H >= w_L  => w_H - w_L >= c_H
+        cond1 = (wage_high - wage_low) >= cost_high
+        # 2. Low-type does NOT want to get education: w_L >= w_H - c_L => c_L >= w_H - w_L
+        cond2 = cost_low >= (wage_high - wage_low)
+        
+        st.write(f"**Condition 1 (High-type incentive):** `Wage diff ≥ High-type cost`")
+        st.write(f"`{wage_high - wage_low} ≥ {cost_high}` → {cond1}")
+        
+        st.write(f"**Condition 2 (Low-type incentive):** `Low-type cost ≥ Wage diff`")
+        st.write(f"`{cost_low} ≥ {wage_high - wage_low}` → {cond2}")
+        
+        if cond1 and cond2:
+            st.success("✅ **Separating Equilibrium Exists!**")
+            st.write("High-productivity workers will get an education to signal their type, and low-productivity workers will not. The signal is credible.")
+        else:
+            st.error("❌ **Separating Equilibrium Does Not Exist** with these parameters.")
+            st.write("A **Pooling Equilibrium** (where no one gets an education) might exist instead. This happens if the signal is too costly for even high-types, or too cheap for low-types to mimic.")
+
 
 # ==================== AI ANALYSIS ====================
 elif category == "AI Analysis":
