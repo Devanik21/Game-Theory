@@ -1232,7 +1232,7 @@ elif category == "Voting Systems":
                 for cand, votes in vote_counts.items():
                     if votes > n_voters / 2:
                         st.success(f"🏆 Winner: Candidate {chr(65 + cand)} with {votes} votes!")
-                        st.balloons()
+                        
                         return
                 
                 # Elimination
