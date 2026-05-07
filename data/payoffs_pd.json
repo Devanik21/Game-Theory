@@ -1,0 +1,9 @@
+{
+    "game": "Prisoner's Dilemma",
+    "players": ["P1", "P2"],
+    "strategies": ["Cooperate", "Defect"],
+    "payoffs": [
+        [[3, 3], [0, 5]],
+        [[5, 0], [1, 1]]
+    ]
+}

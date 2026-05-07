@@ -1,0 +1,7 @@
+auction_id,bidder_id,bid_amount,winner,price_paid
+1,1,100,True,80
+1,2,80,False,0
+1,3,50,False,0
+2,1,90,False,0
+2,2,110,True,90
+2,3,40,False,0
